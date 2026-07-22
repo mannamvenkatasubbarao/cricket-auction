@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 
 
 const Players: React.FC = () => {
-  const { players, addPlayer, updatePlayer, deletePlayer, importPlayers, roles, categories } = useStore();
+  const { players, addPlayer, updatePlayer, deletePlayer, importPlayers, roles, categories, addCategory } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +92,16 @@ const Players: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Normalize role names from Excel to app format
+    const normalizeRole = (r: string): string => {
+      const val = r.toUpperCase().trim();
+      if (val.includes('ALL ROUNDER') || val.includes('ALL-ROUNDER') || val === 'ALLROUNDER') return 'All-Rounder';
+      if (val === 'BATSMEN' || val === 'BATSMAN' || val === 'BATTER') return 'Batsman';
+      if (val === 'BOWLER') return 'Bowler';
+      if (val.includes('WICKET') || val.includes('KEEPER') || val === 'WK') return 'Wicket Keeper';
+      return r.trim() || (roles[0] ?? 'Batsman');
+    };
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -106,19 +116,58 @@ const Players: React.FC = () => {
           return;
         }
 
-        const newPlayers: Player[] = rows.map(row => ({
-          id: crypto.randomUUID(),
-          name: String(row.Name || row.name || row.PLAYER_NAME || row['Player Name'] || '').trim() || 'Unknown',
-          country: String(row.Country || row.country || row.COUNTRY || '').trim() || 'Unknown',
-          role: String(row.Role || row.role || row.ROLE || '').trim() || roles[0] || 'Batsman',
-          category: String(row.Category || row.category || row.CATEGORY || '').trim() || categories[0] || 'Uncapped',
-          basePrice: Number(row.BasePrice || row.base_price || row['Base Price'] || row.basePrice || 2000000),
-          notes: String(row.Notes || row.notes || '').trim(),
-          status: 'available'
-        }));
+        // Collect unique branches from this file to auto-add as categories
+        const newCats = new Set<string>();
+
+        const newPlayers: Player[] = rows.map(row => {
+          // Support many possible column names
+          const name = String(
+            row['FULL NAME'] || row['Full Name'] || row.Name || row.name ||
+            row.PLAYER_NAME || row['Player Name'] || row.FULLNAME || ''
+          ).trim() || 'Unknown';
+
+          const rawRole = String(
+            row.ROLE || row.Role || row.role || row['PLAYER ROLE'] || ''
+          ).trim();
+          const role = normalizeRole(rawRole);
+
+          // BRANCH is the category (AIE, EEE, ECE, CSE, etc.)
+          const category = String(
+            row.BRANCH || row.Branch || row.branch ||
+            row.Category || row.category || row.CATEGORY || ''
+          ).trim() || (categories[0] ?? 'Uncapped');
+
+          if (category && !categories.includes(category)) newCats.add(category);
+
+          const year = String(row.YEAR || row.Year || row.year || '').trim();
+          const mobile = String(row['MOBILE NUMBER'] || row.Mobile || row.mobile || row.Phone || '').trim();
+          const rollNo = String(row['ROLL NUMBER(i.e.,'] || row['ROLL NUMBER'] || row.RollNo || row.rollno || row['Roll No'] || '').trim();
+
+          const noteParts = [
+            year && `Year: ${year}`,
+            mobile && `Mobile: ${mobile}`,
+            rollNo && `Roll No: ${rollNo}`,
+          ].filter(Boolean);
+
+          return {
+            id: crypto.randomUUID(),
+            name,
+            country: String(row.Country || row.country || row.COUNTRY || 'India').trim(),
+            role,
+            category,
+            basePrice: Number(row.BasePrice || row['Base Price'] || row.base_price || row.basePrice || 2000000),
+            notes: noteParts.join(' | '),
+            status: 'available'
+          } as Player;
+        });
+
+        // Auto-add new categories from this import
+        newCats.forEach(cat => {
+          if (!categories.includes(cat)) addCategory(cat);
+        });
 
         importPlayers(newPlayers);
-        alert(`Successfully imported ${newPlayers.length} player(s)!`);
+        alert(`Successfully imported ${newPlayers.length} player(s)! ${newCats.size > 0 ? `\nNew categories added: ${[...newCats].join(', ')}` : ''}`);
       } catch (err) {
         console.error('Import failed:', err);
         alert('Failed to read the file. Please make sure it is a valid .xlsx or .csv file.');
