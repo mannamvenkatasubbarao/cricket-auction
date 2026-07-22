@@ -1,6 +1,8 @@
 export type Role = 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket Keeper' | string;
 export type Category = 'Overseas' | 'Emerging' | 'Uncapped' | 'Icon Player' | string;
 
+export const MAX_PLAYERS_PER_TEAM = 13;
+
 export interface Team {
   id: string;
   name: string;

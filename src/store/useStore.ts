@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { idbStorage } from '../utils/storage';
+import { MAX_PLAYERS_PER_TEAM } from '../types';
 import type { Team, Player, AuctionHistoryItem, AuctionState } from '../types';
 
 interface StoreState extends AuctionState {
@@ -88,8 +89,11 @@ export const useStore = create<StoreState>()(
       },
 
       sellPlayer: () => {
-        const { currentPlayerId, currentBid, biddingTeamId } = get();
+        const { currentPlayerId, currentBid, biddingTeamId, players } = get();
         if (!currentPlayerId || !biddingTeamId) return;
+
+        const teamPlayerCount = players.filter((p) => p.status === 'sold' && p.teamId === biddingTeamId).length;
+        if (teamPlayerCount >= MAX_PLAYERS_PER_TEAM) return;
 
         const timestamp = Date.now();
         const historyItem: AuctionHistoryItem = {

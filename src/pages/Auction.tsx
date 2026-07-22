@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { Check, X, ArrowLeft, ArrowRight, RotateCcw, AlertTriangle, Play, Pause } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
+import { MAX_PLAYERS_PER_TEAM } from '../types';
 
 const BID_INCREMENT = 5; // ₹5 fixed increment only
 
@@ -62,6 +63,13 @@ const Auction: React.FC = () => {
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
   const biddingTeam = teams.find(t => t.id === biddingTeamId);
+  const teamPlayerCounts = useMemo(() => {
+    return teams.reduce<Record<string, number>>((acc, team) => {
+      acc[team.id] = players.filter(player => player.status === 'sold' && player.teamId === team.id).length;
+      return acc;
+    }, {});
+  }, [teams, players]);
+  const isCurrentTeamFull = Boolean(biddingTeamId && (teamPlayerCounts[biddingTeamId] ?? 0) >= MAX_PLAYERS_PER_TEAM);
 
   // Initialize first player if none selected
   useEffect(() => {
@@ -232,7 +240,7 @@ const Auction: React.FC = () => {
           
           {/* Main Action Buttons */}
           <div className="glass-card" style={{ padding: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <button className="btn btn-primary" style={{ height: '60px', fontSize: '1.2rem', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.4)' }} onClick={sellPlayer} disabled={!biddingTeamId || isPaused}>
+            <button className="btn btn-primary" style={{ height: '60px', fontSize: '1.2rem', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.4)' }} onClick={sellPlayer} disabled={!biddingTeamId || isPaused || isCurrentTeamFull}>
               <Check size={24} /> SELL (S)
             </button>
             <button className="btn btn-danger" style={{ height: '60px', fontSize: '1.2rem' }} onClick={markUnsold} disabled={isPaused}>
@@ -247,39 +255,48 @@ const Auction: React.FC = () => {
           <div className="glass-card" style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>TEAMS</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {teams.map(team => (
-                <div key={team.id} style={{ 
-                  padding: '1rem', borderRadius: '8px', 
-                  backgroundColor: biddingTeamId === team.id ? team.color + '30' : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${biddingTeamId === team.id ? team.color : 'transparent'}`,
-                  transition: 'all 0.2s',
-                  opacity: team.remainingPurse < (currentBid || currentPlayer.basePrice) ? 0.5 : 1
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{team.name}</div>
-                    <div style={{ color: 'var(--gold-accent)', fontWeight: 600 }}>{formatCurrency(team.remainingPurse)}</div>
+              {teams.map(team => {
+                const teamPlayerCount = teamPlayerCounts[team.id] ?? 0;
+                const isTeamFull = teamPlayerCount >= MAX_PLAYERS_PER_TEAM;
+
+                return (
+                  <div key={team.id} style={{ 
+                    padding: '1rem', borderRadius: '8px', 
+                    backgroundColor: biddingTeamId === team.id ? team.color + '30' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${biddingTeamId === team.id ? team.color : 'transparent'}`,
+                    transition: 'all 0.2s',
+                    opacity: isTeamFull || team.remainingPurse < (currentBid || currentPlayer.basePrice) ? 0.5 : 1
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{team.name}</div>
+                      <div style={{ color: 'var(--gold-accent)', fontWeight: 600 }}>{formatCurrency(team.remainingPurse)}</div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                      <span>{isTeamFull ? 'Squad full' : `${teamPlayerCount}/${MAX_PLAYERS_PER_TEAM} players`}</span>
+                      <span>{isTeamFull ? 'Max reached' : 'Open'}</span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button 
+                        className="btn btn-outline" 
+                        style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }} 
+                        onClick={() => handleBid(team.id, 0)} 
+                        disabled={isPaused || isTeamFull || team.remainingPurse < currentPlayer.basePrice}
+                      >
+                        Base ₹{currentPlayer.basePrice}
+                      </button>
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ flex: 1, padding: '0.5rem', fontSize: '0.95rem', fontWeight: 700 }} 
+                        onClick={() => handleBid(team.id, BID_INCREMENT)} 
+                        disabled={isPaused || isTeamFull || team.remainingPurse < (currentBid + BID_INCREMENT)}
+                      >
+                        +₹{BID_INCREMENT}
+                      </button>
+                    </div>
                   </div>
-                  
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <button 
-                      className="btn btn-outline" 
-                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }} 
-                      onClick={() => handleBid(team.id, 0)} 
-                      disabled={isPaused || team.remainingPurse < currentPlayer.basePrice}
-                    >
-                      Base ₹{currentPlayer.basePrice}
-                    </button>
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.95rem', fontWeight: 700 }} 
-                      onClick={() => handleBid(team.id, BID_INCREMENT)} 
-                      disabled={isPaused || team.remainingPurse < (currentBid + BID_INCREMENT)}
-                    >
-                      +₹{BID_INCREMENT}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
