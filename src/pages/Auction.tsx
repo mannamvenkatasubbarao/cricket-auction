@@ -15,7 +15,51 @@ const Auction: React.FC = () => {
 
 
   // Derived state
-  const availablePlayers = useMemo(() => players.filter(p => p.status === 'available'), [players]);
+
+  const shuffle = <T,>(arr: T[]) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const roleOrder = [
+    'Batsman',
+    'Bowler',
+    'All-Rounder',
+    'Wicket Keeper'
+  ];
+
+  const availablePlayers = useMemo(() => {
+    const available = players.filter(p => p.status === 'available');
+
+    const ordered: typeof available = [];
+
+    roleOrder.forEach(role => {
+      ordered.push(
+        ...shuffle(available.filter(p => p.role === role))
+      );
+    });
+
+    const remainingRoles = [
+      ...new Set(
+        available
+          .map(p => p.role)
+          .filter(r => !roleOrder.includes(r))
+      )
+    ];
+
+    remainingRoles.forEach(role => {
+      ordered.push(
+        ...shuffle(available.filter(p => p.role === role))
+      );
+    });
+
+    return ordered;
+  }, [players]);
+
   const currentPlayer = players.find(p => p.id === currentPlayerId);
   const biddingTeam = teams.find(t => t.id === biddingTeamId);
 
