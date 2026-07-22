@@ -7,9 +7,9 @@ import * as XLSX from 'xlsx';
 import { formatCurrency } from '../utils/helpers';
 
 const Settings: React.FC = () => {
-  const { 
-    teams, players, history, resetAuction, importBackup, 
-    categories, roles, addCategory, removeCategory, addRole, removeRole 
+  const {
+    teams, players, history, resetAuction, importBackup,
+    categories, roles, addCategory, removeCategory, addRole, removeRole
   } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,88 +71,89 @@ const Settings: React.FC = () => {
 
   const exportToPDF = () => {
     const doc = new jsPDF();
-    doc.text('Cricket Auction - Complete Report', 14, 15);
-    
-    // Team Summary Table
-    const teamData = teams.map(t => [
-      t.name, 
-      formatCurrency(t.initialPurse),
-      formatCurrency(t.initialPurse - t.remainingPurse),
-      formatCurrency(t.remainingPurse),
-      players.filter(p => p.teamId === t.id).length.toString()
-    ]);
+    doc.setFontSize(18);
+    doc.text("Cricket Auction Report", 14, 15);
 
-    autoTable(doc, {
-      startY: 25,
-      head: [['Team', 'Initial Purse', 'Total Spent', 'Remaining Purse', 'Players Bought']],
-      body: teamData,
+    let firstSection = true;
+
+    teams.forEach((team) => {
+      const teamPlayers = players.filter(p => p.teamId === team.id);
+
+      if (!firstSection) doc.addPage();
+      firstSection = false;
+
+      doc.setFontSize(16);
+      doc.text(team.name, 14, 20);
+
+      autoTable(doc, {
+        startY: 28,
+        head: [["Player", "Country", "Role", "Category", "Base Price", "Sold Price"]],
+        body: teamPlayers.map(player => [
+          player.name,
+          player.country,
+          player.role,
+          player.category,
+          formatCurrency(player.basePrice),
+          formatCurrency(player.soldPrice || 0)
+        ]),
+      });
+
+      const endY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.text(`Players Bought: ${teamPlayers.length}`, 14, endY);
+      doc.text(`Total Spent: ${formatCurrency(team.initialPurse - team.remainingPurse)}`, 14, endY + 8);
+      doc.text(`Remaining Purse: ${formatCurrency(team.remainingPurse)}`, 14, endY + 16);
     });
 
-    // Sold Players Table
-    const soldPlayers = players.filter(p => p.status === 'sold');
-    const playerData = soldPlayers.map(p => [
-      p.name,
-      p.country,
-      p.role,
-      p.category,
-      teams.find(t => t.id === p.teamId)?.name || 'Unknown',
-      formatCurrency(p.soldPrice || 0)
-    ]);
-
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 15,
-      head: [['Player', 'Country', 'Role', 'Category', 'Team', 'Price']],
-      body: playerData,
-    });
-
-    doc.save(`auction-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save("Auction_Report.pdf");
   };
 
   const exportToExcel = () => {
     const wb = XLSX.utils.book_new();
-    
-    // Teams Sheet
-    const wsTeams = XLSX.utils.json_to_sheet(teams.map(t => ({
-      'Team Name': t.name,
-      'Initial Purse': t.initialPurse,
-      'Total Spent': t.initialPurse - t.remainingPurse,
-      'Remaining Purse': t.remainingPurse,
-      'Players Bought': players.filter(p => p.teamId === t.id).length
-    })));
-    XLSX.utils.book_append_sheet(wb, wsTeams, "Teams Summary");
 
-    // Players Sheet
-    const wsPlayers = XLSX.utils.json_to_sheet(players.map(p => ({
-      'Name': p.name,
-      'Country': p.country,
-      'Role': p.role,
-      'Category': p.category,
-      'Base Price': p.basePrice,
-      'Status': p.status.toUpperCase(),
-      'Team': teams.find(t => t.id === p.teamId)?.name || '',
-      'Sold Price': p.soldPrice || ''
-    })));
-    XLSX.utils.book_append_sheet(wb, wsPlayers, "All Players");
+    teams.forEach(team => {
+      const teamPlayers = players.filter(p => p.teamId === team.id);
 
-    XLSX.writeFile(wb, `auction-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      const rows = [
+        { Player: "TEAM", Country: team.name, Role: "", Category: "", "Base Price": "", "Sold Price": "", Status: "" },
+        { Player: "Initial Purse", Country: team.initialPurse, Role: "", Category: "", "Base Price": "", "Sold Price": "", Status: "" },
+        { Player: "Remaining Purse", Country: team.remainingPurse, Role: "", Category: "", "Base Price": "", "Sold Price": "", Status: "" },
+        { Player: "Total Spent", Country: team.initialPurse - team.remainingPurse, Role: "", Category: "", "Base Price": "", "Sold Price": "", Status: "" },
+        {},
+        ...teamPlayers.map(player => ({
+          Player: player.name,
+          Country: player.country,
+          Role: player.role,
+          Category: player.category,
+          "Base Price": player.basePrice,
+          "Sold Price": player.soldPrice || "",
+          Status: player.status
+        }))
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, team.name.substring(0, 31));
+    });
+
+    XLSX.writeFile(wb, "Auction_Report.xlsx");
   };
 
   return (
     <div className="page-container animate-fade-in">
       <h1>Settings & Actions</h1>
-      
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem', marginTop: '2rem' }}>
-        
+
         {/* Dynamic Categories */}
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ marginBottom: '1rem' }}>Manage Categories</h3>
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-            <input 
-              type="text" 
-              className="input-field" 
-              placeholder="New Category..." 
-              value={newCategory} 
-              onChange={e => setNewCategory(e.target.value)} 
+            <input
+              type="text"
+              className="input-field"
+              placeholder="New Category..."
+              value={newCategory}
+              onChange={e => setNewCategory(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
             />
             <button className="btn btn-primary" onClick={handleAddCategory}><Plus size={18} /></button>
@@ -173,12 +174,12 @@ const Settings: React.FC = () => {
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ marginBottom: '1rem' }}>Manage Roles</h3>
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-            <input 
-              type="text" 
-              className="input-field" 
-              placeholder="New Role..." 
-              value={newRole} 
-              onChange={e => setNewRole(e.target.value)} 
+            <input
+              type="text"
+              className="input-field"
+              placeholder="New Role..."
+              value={newRole}
+              onChange={e => setNewRole(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddRole()}
             />
             <button className="btn btn-primary" onClick={handleAddRole}><Plus size={18} /></button>
