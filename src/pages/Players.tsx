@@ -25,7 +25,7 @@ const Players: React.FC = () => {
   const [country, setCountry] = useState('');
   const [role, setRole] = useState<Role>('Batsman');
   const [category, setCategory] = useState<Category>('Indian');
-  const [basePrice, setBasePrice] = useState<number>(2000000); // 20L default
+  const [basePrice, setBasePrice] = useState<number>(20); // ₹20 default
   const [photo, setPhoto] = useState<string>('');
   const [notes, setNotes] = useState('');
 
@@ -34,7 +34,7 @@ const Players: React.FC = () => {
     setCountry('');
     setRole(roles[0] || '');
     setCategory(categories[0] || '');
-    setBasePrice(2000000);
+    setBasePrice(20);
     setPhoto('');
     setNotes('');
     setEditingPlayerId(null);
@@ -155,7 +155,7 @@ const Players: React.FC = () => {
             country: String(row.Country || row.country || row.COUNTRY || 'India').trim(),
             role,
             category,
-            basePrice: Number(row.BasePrice || row['Base Price'] || row.base_price || row.basePrice || 2000000),
+            basePrice: Number(row.BasePrice || row['Base Price'] || row.base_price || row.basePrice || 20),
             notes: noteParts.join(' | '),
             status: 'available'
           } as Player;

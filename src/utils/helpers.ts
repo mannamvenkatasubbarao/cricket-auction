@@ -8,14 +8,7 @@ export const fileToBase64 = (file: File): Promise<string> => {
 };
 
 export const formatCurrency = (amount: number): string => {
-  // Assuming amount is in absolute numerical value. 
-  // Let's format it in Indian format (Lakhs/Crores)
-  if (amount >= 10000000) {
-    return `₹${(amount / 10000000).toFixed(2)} Cr`;
-  }
-  if (amount >= 100000) {
-    return `₹${(amount / 100000).toFixed(2)} L`;
-  }
+  // College tournament uses real rupees - just show plain ₹ amount
   return `₹${amount.toLocaleString('en-IN')}`;
 };
 

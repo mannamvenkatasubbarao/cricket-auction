@@ -13,13 +13,13 @@ const Teams: React.FC = () => {
   // Form State
   const [name, setName] = useState('');
   const [color, setColor] = useState('#3b82f6');
-  const [initialPurse, setInitialPurse] = useState<number>(1000000000); // Default 100 Cr
+  const [initialPurse, setInitialPurse] = useState<number>(1000); // Default ₹1000
   const [logo, setLogo] = useState<string>('');
 
   const resetForm = () => {
     setName('');
     setColor('#3b82f6');
-    setInitialPurse(1000000000);
+    setInitialPurse(1000);
     setLogo('');
     setEditingTeamId(null);
   };

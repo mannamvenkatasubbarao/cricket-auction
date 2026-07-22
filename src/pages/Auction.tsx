@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { Check, X, ArrowLeft, ArrowRight, RotateCcw, AlertTriangle, Play, Pause } from 'lucide-react';
 import { formatCurrency } from '../utils/helpers';
 
-const BIDS = [100000, 200000, 500000, 1000000, 2500000, 5000000, 10000000]; // 1L, 2L, 5L, 10L, 25L, 50L, 1Cr
+const BID_INCREMENT = 5; // ₹5 fixed increment only
 
 const Auction: React.FC = () => {
   const { 
@@ -12,7 +12,7 @@ const Auction: React.FC = () => {
     pauseAuction, resumeAuction
   } = useStore();
 
-  const [manualBid, setManualBid] = useState('');
+
 
   // Derived state
   const availablePlayers = useMemo(() => players.filter(p => p.status === 'available'), [players]);
@@ -72,16 +72,7 @@ const Auction: React.FC = () => {
     }
   };
 
-  const handleManualBidSubmit = (teamId: string) => {
-    const amount = Number(manualBid);
-    if (isNaN(amount) || amount <= 0) return;
-    
-    const team = teams.find(t => t.id === teamId);
-    if (team && amount <= team.remainingPurse && amount > currentBid) {
-      placeBid(teamId, amount);
-      setManualBid('');
-    }
-  };
+
 
   if (players.length === 0 || teams.length === 0) {
     return (
@@ -226,27 +217,22 @@ const Auction: React.FC = () => {
                   </div>
                   
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <button className="btn btn-outline" style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }} onClick={() => handleBid(team.id, 0)} disabled={isPaused || team.remainingPurse < currentPlayer.basePrice}>
-                      Base
+                    <button 
+                      className="btn btn-outline" 
+                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }} 
+                      onClick={() => handleBid(team.id, 0)} 
+                      disabled={isPaused || team.remainingPurse < currentPlayer.basePrice}
+                    >
+                      Base ₹{currentPlayer.basePrice}
                     </button>
-                    {BIDS.map(amount => (
-                      <button key={amount} className="btn btn-outline" style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }} onClick={() => handleBid(team.id, amount)} disabled={isPaused || team.remainingPurse < (currentBid + amount)}>
-                        +{amount >= 10000000 ? `${amount/10000000}Cr` : `${amount/100000}L`}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <div style={{ display: 'flex', marginTop: '0.5rem', gap: '0.5rem' }}>
-                    <input 
-                      type="number" 
-                      className="input-field" 
-                      style={{ padding: '0.5rem' }} 
-                      placeholder="Custom Bid"
-                      value={manualBid}
-                      onChange={e => setManualBid(e.target.value)}
-                      disabled={isPaused}
-                    />
-                    <button className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} onClick={() => handleManualBidSubmit(team.id)} disabled={isPaused}>Bid</button>
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.95rem', fontWeight: 700 }} 
+                      onClick={() => handleBid(team.id, BID_INCREMENT)} 
+                      disabled={isPaused || team.remainingPurse < (currentBid + BID_INCREMENT)}
+                    >
+                      +₹{BID_INCREMENT}
+                    </button>
                   </div>
                 </div>
               ))}
