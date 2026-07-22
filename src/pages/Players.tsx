@@ -94,27 +94,38 @@ const Players: React.FC = () => {
 
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws) as any[];
+      try {
+        const data = evt.target?.result;
+        const wb = XLSX.read(data, { type: 'array' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' }) as any[];
 
-      const newPlayers: Player[] = data.map(row => ({
-        id: crypto.randomUUID(),
-        name: row.Name || row.name || 'Unknown',
-        country: row.Country || row.country || 'Unknown',
-        role: row.Role || row.role || roles[0] || 'Unknown',
-        category: row.Category || row.category || categories[0] || 'Unknown',
-        basePrice: Number(row.BasePrice || row.basePrice || 2000000),
-        notes: row.Notes || row.notes || '',
-        status: 'available'
-      }));
+        if (rows.length === 0) {
+          alert('The file appears to be empty or has no readable data.');
+          return;
+        }
 
-      importPlayers(newPlayers);
+        const newPlayers: Player[] = rows.map(row => ({
+          id: crypto.randomUUID(),
+          name: String(row.Name || row.name || row.PLAYER_NAME || row['Player Name'] || '').trim() || 'Unknown',
+          country: String(row.Country || row.country || row.COUNTRY || '').trim() || 'Unknown',
+          role: String(row.Role || row.role || row.ROLE || '').trim() || roles[0] || 'Batsman',
+          category: String(row.Category || row.category || row.CATEGORY || '').trim() || categories[0] || 'Uncapped',
+          basePrice: Number(row.BasePrice || row.base_price || row['Base Price'] || row.basePrice || 2000000),
+          notes: String(row.Notes || row.notes || '').trim(),
+          status: 'available'
+        }));
+
+        importPlayers(newPlayers);
+        alert(`Successfully imported ${newPlayers.length} player(s)!`);
+      } catch (err) {
+        console.error('Import failed:', err);
+        alert('Failed to read the file. Please make sure it is a valid .xlsx or .csv file.');
+      }
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const filteredPlayers = useMemo(() => {
